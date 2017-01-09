@@ -210,6 +210,11 @@ class api:
 
         return self._parse_response(r)
 
+    def _read(self, file_obj):
+        if six.PY3:
+            return base64.b64encode(file_obj.read()).decode()
+        return base64.b64encode(file_obj.read())}
+
     def logs(self, timeout=None):
         """ API call to get a list of logs """
         return self._api_request(
@@ -530,10 +535,7 @@ class api:
             if isinstance(inline, file):  # noqa, until #47 is fixed
                 image = {
                     'id': inline.name,
-                    'data': (
-                        base64.b64encode(inline.read()).decode()
-                        if six.PY3 else base64.b64encode(inline.read())
-                    )
+                    'data': self._read(inline)
                 }
 
                 payload['inline'] = image
@@ -546,13 +548,22 @@ class api:
             file_list = []
             if isinstance(files, list):
                 for f in files:
+                    if isinstance(f, dict):
+                        try:
+                            file_name = f['name']
+                            file_data = f['data']
+                        except KeyError as e:
+                            logger.error(KeyError)
+
+                    else:
+                        file_name = f.name
+                        file_data = self._read(file_obj)
+
                     file_list.append({
-                        'id': f.name,
-                        'data': (
-                            base64.b64encode(f.read()).decode()
-                            if six.PY3 else base64.b64encode(f.read())
-                        )
+                        'id': file_name,
+                        'data': file_data
                     })
+
 
                 payload['files'] = file_list
 
